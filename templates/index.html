@@ -3,13 +3,13 @@
 {% block content %}
 <h2>Lista de Demandas</h2>
 
-
 <table border="1" cellpadding="10" cellspacing="0" width="100%">
     <thead>
         <tr bgcolor="#cccccc">
             <th>ID</th>
             <th>Título</th>
             <th>Solicitante</th>
+            <th>Prioridade</th>
             <th>Data</th>
             <th>Ações</th>
         </tr>
@@ -20,6 +20,17 @@
             <td>{{ demanda[0] }}</td>
             <td>{{ demanda[1] }}</td>
             <td>{{ demanda[3] }}</td>
+            <td>
+                {% if demanda[5] == 'Critica' %}
+                    <span style="background:#c0392b;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Crítica</span>
+                {% elif demanda[5] == 'Alta' %}
+                    <span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟠 Alta</span>
+                {% elif demanda[5] == 'Media' %}
+                    <span style="background:#f1c40f;color:#333;padding:3px 10px;border-radius:12px;font-weight:bold;">🟡 Média</span>
+                {% else %}
+                    <span style="background:#27ae60;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟢 Baixa</span>
+                {% endif %}
+            </td>
             <td>{{ demanda[4] }}</td>
             <td>
                 <a href="/detalhes/{{ demanda[0] }}">Ver</a>
@@ -32,7 +43,6 @@
         {% endfor %}
     </tbody>
 </table>
-
 
 <br><br>
 <a href="/nova_demanda"><button>+ Nova Demanda</button></a>

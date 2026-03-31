@@ -1,9 +1,7 @@
 import sqlite3
 
-
 conn = sqlite3.connect('demandas.db')
 cursor = conn.cursor()
-
 
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS demandas (
@@ -11,10 +9,10 @@ CREATE TABLE IF NOT EXISTS demandas (
     titulo TEXT,
     descricao TEXT,
     solicitante TEXT,
-    data_criacao TEXT
+    data_criacao TEXT,
+    prioridade TEXT DEFAULT 'Media'
 )
 ''')
-
 
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS comentarios (

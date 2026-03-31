@@ -7,10 +7,21 @@
     <h3>{{ demanda[1] }}</h3>
     <p><strong>Descrição:</strong></p>
     <p>{{ demanda[2] }}</p>
-    
+
     <p><strong>Solicitante:</strong> {{ demanda[3] }}</p>
     <p><strong>Data de Criação:</strong> {{ demanda[4] }}</p>
-    
+    <p><strong>Prioridade:</strong>
+        {% if demanda[5] == 'Critica' %}
+            <span style="background:#c0392b;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Crítica</span>
+        {% elif demanda[5] == 'Alta' %}
+            <span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟠 Alta</span>
+        {% elif demanda[5] == 'Media' %}
+            <span style="background:#f1c40f;color:#333;padding:3px 10px;border-radius:12px;font-weight:bold;">🟡 Média</span>
+        {% else %}
+            <span style="background:#27ae60;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟢 Baixa</span>
+        {% endif %}
+    </p>
+
     <br>
     <a href="/editar/{{ demanda[0] }}"><button>Editar</button></a>
     <a href="/"><button>Voltar</button></a>
@@ -29,12 +40,12 @@
 <form method="POST" action="/adicionar_comentario/{{ demanda[0] }}">
     <div>
         <label>Seu nome:</label><br>
-        <input type="text" name="autor" size="30" required>
+        <input type="text" name="autor" size="30">
     </div>
     <br>
     <div>
         <label>Comentário:</label><br>
-        <textarea name="comentario" rows="4" cols="50" required></textarea>
+        <textarea name="comentario" rows="4" cols="50"></textarea>
     </div>
     <br>
     <button type="submit">Enviar Comentário</button>

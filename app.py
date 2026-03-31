@@ -5,6 +5,8 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = '123456'
 
+ORDEM_PRIORIDADE = "CASE prioridade WHEN 'Critica' THEN 1 WHEN 'Alta' THEN 2 WHEN 'Media' THEN 3 WHEN 'Baixa' THEN 4 END"
+
 
 def get_db():
     conn = sqlite3.connect('demandas.db')
@@ -16,7 +18,9 @@ def get_db():
 def index():
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
-    demandas = cursor.execute('SELECT * FROM demandas').fetchall()
+    demandas = cursor.execute(
+        f'SELECT * FROM demandas ORDER BY {ORDEM_PRIORIDADE}'
+    ).fetchall()
     conn.close()
     return render_template('index.html', demandas=demandas)
 
@@ -27,27 +31,23 @@ def nova_demanda():
         titulo = request.form['titulo'].strip()
         descricao = request.form['descricao'].strip()
         solicitante = request.form['solicitante'].strip()
-
-        if not titulo or not descricao or not solicitante:
-            flash('Todos os campos são obrigatórios.')
-            return render_template('nova_demanda.html')
+        prioridade = request.form['prioridade'].strip()
 
         conn = sqlite3.connect('demandas.db')
         cursor = conn.cursor()
-
         cursor.execute(
-            "INSERT INTO demandas (titulo, descricao, solicitante, data_criacao) VALUES (?, ?, ?, ?)",
-            (titulo, descricao, solicitante, datetime.now()))
+            "INSERT INTO demandas (titulo, descricao, solicitante, data_criacao, prioridade) VALUES (?, ?, ?, ?, ?)",
+            (titulo, descricao, solicitante, datetime.now(), prioridade))
         conn.commit()
         conn.close()
 
-        flash('Salvo!')
+        flash('Demanda salva com sucesso!')
         return redirect('/')
 
     return render_template('nova_demanda.html')
 
 
-@app.route('/editar/<id>', methods=['GET', 'POST'])
+@app.route('/editar/<int:id>', methods=['GET', 'POST'])
 def editar(id):
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
@@ -56,16 +56,11 @@ def editar(id):
         titulo = request.form['titulo'].strip()
         descricao = request.form['descricao'].strip()
         solicitante = request.form['solicitante'].strip()
-
-        if not titulo or not descricao or not solicitante:
-            demanda = cursor.execute('SELECT * FROM demandas WHERE id=?', (id,)).fetchone()
-            conn.close()
-            flash('Todos os campos são obrigatórios.')
-            return render_template('editar.html', demanda=demanda)
+        prioridade = request.form['prioridade'].strip()
 
         cursor.execute(
-            "UPDATE demandas SET titulo=?, descricao=?, solicitante=? WHERE id=?",
-            (titulo, descricao, solicitante, id))
+            "UPDATE demandas SET titulo=?, descricao=?, solicitante=?, prioridade=? WHERE id=?",
+            (titulo, descricao, solicitante, prioridade, id))
         conn.commit()
         conn.close()
         return redirect('/')
@@ -75,51 +70,44 @@ def editar(id):
     return render_template('editar.html', demanda=demanda)
 
 
-@app.route('/deletar/<id>')
+@app.route('/deletar/<int:id>')
 def deletar(id):
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
     cursor.execute('DELETE FROM demandas WHERE id=?', (id,))
     conn.commit()
     conn.close()
-    flash('Deletado!')
+    flash('Demanda deletada!')
     return redirect('/')
 
 
 @app.route('/buscar')
 def buscar():
-    termo = request.args.get('q')
+    termo = request.args.get('q', '')
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
-    resultados = cursor.execute("SELECT * FROM demandas WHERE titulo LIKE ?", (f'%{termo}%',)).fetchall()
+    resultados = cursor.execute(
+        f"SELECT * FROM demandas WHERE titulo LIKE ? ORDER BY {ORDEM_PRIORIDADE}",
+        (f'%{termo}%',)
+    ).fetchall()
     conn.close()
     return render_template('index.html', demandas=resultados)
 
 
-# @app.route('/admin')
-# def admin():
-#     return 'Área administrativa'
-
-@app.route('/detalhes/<id>')
+@app.route('/detalhes/<int:id>')
 def detalhes(id):
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
     demanda = cursor.execute('SELECT * FROM demandas WHERE id=?', (id,)).fetchone()
-
     comentarios = cursor.execute('SELECT * FROM comentarios WHERE demanda_id=?', (id,)).fetchall()
     conn.close()
-
     return render_template('detalhes.html', demanda=demanda, comentarios=comentarios)
 
 
-@app.route('/adicionar_comentario/<demanda_id>', methods=['POST'])
+@app.route('/adicionar_comentario/<int:demanda_id>', methods=['POST'])
 def adicionar_comentario(demanda_id):
     comentario = request.form['comentario'].strip()
     autor = request.form['autor'].strip()
-
-    if not comentario or not autor:
-        flash('Preencha seu nome e o comentário antes de enviar.')
-        return redirect(f'/detalhes/{demanda_id}')
 
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
@@ -130,10 +118,6 @@ def adicionar_comentario(demanda_id):
     conn.close()
 
     return redirect(f'/detalhes/{demanda_id}')
-
-
-def calcular_prazo(data_inicio):
-    return "30 dias"
 
 
 if __name__ == '__main__':

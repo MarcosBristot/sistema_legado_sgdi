@@ -9,19 +9,30 @@
         <input type="text" name="titulo" size="50" required>
     </div>
     <br>
-    
+
     <div>
         <label>Descrição:</label><br>
         <textarea name="descricao" rows="5" cols="50" required></textarea>
     </div>
     <br>
-    
+
     <div>
         <label>Solicitante:</label><br>
         <input type="text" name="solicitante" required>
     </div>
     <br>
-    
+
+    <div>
+        <label>Prioridade:</label><br>
+        <select name="prioridade">
+            <option value="Baixa">🟢 Baixa</option>
+            <option value="Media" >🟡 Média</option>
+            <option value="Alta">🟠 Alta</option>
+            <option value="Critica">🔴 Crítica</option>
+        </select>
+    </div>
+    <br>
+
     <button type="submit">Salvar</button>
     <a href="/"><button type="button">Cancelar</button></a>
 </form>
