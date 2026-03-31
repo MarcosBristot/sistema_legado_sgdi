@@ -33,6 +33,10 @@ def nova_demanda():
         solicitante = request.form['solicitante'].strip()
         prioridade = request.form['prioridade'].strip()
 
+        if not titulo or not descricao or not solicitante:
+            flash('Todos os campos são obrigatórios.')
+            return render_template('nova_demanda.html')
+
         conn = sqlite3.connect('demandas.db')
         cursor = conn.cursor()
         cursor.execute(
@@ -57,6 +61,12 @@ def editar(id):
         descricao = request.form['descricao'].strip()
         solicitante = request.form['solicitante'].strip()
         prioridade = request.form['prioridade'].strip()
+
+        if not titulo or not descricao or not solicitante:
+            demanda = cursor.execute('SELECT * FROM demandas WHERE id=?', (id,)).fetchone()
+            conn.close()
+            flash('Todos os campos são obrigatórios.')
+            return render_template('editar.html', demanda=demanda)
 
         cursor.execute(
             "UPDATE demandas SET titulo=?, descricao=?, solicitante=?, prioridade=? WHERE id=?",
@@ -108,6 +118,10 @@ def detalhes(id):
 def adicionar_comentario(demanda_id):
     comentario = request.form['comentario'].strip()
     autor = request.form['autor'].strip()
+
+    if not comentario or not autor:
+        flash('Preencha seu nome e o comentário antes de enviar.')
+        return redirect(f'/detalhes/{demanda_id}')
 
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
