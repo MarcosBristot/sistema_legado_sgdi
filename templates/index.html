@@ -3,6 +3,46 @@
 {% block content %}
 <h2>Lista de Demandas</h2>
 
+<div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <span style="font-weight: bold; color: #374151; font-size: 14px;">Filtrar por prioridade:</span>
+
+    <a href="{{ url_for('index') }}"
+       style="padding: 5px 14px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold;
+              border: 2px solid {% if not prioridade_ativa %}#1e3a8a{% else %}#d1d5db{% endif %};
+              background: {% if not prioridade_ativa %}#1e3a8a{% else %}#f9fafb{% endif %};
+              color: {% if not prioridade_ativa %}white{% else %}#374151{% endif %};">
+        Todas
+    </a>
+
+    {% for nivel, label, cor_bg, cor_borda, cor_texto in [
+        ('Critica', '🔴 Crítica', '#fee2e2', '#c0392b', '#991b1b'),
+        ('Alta',    '🟠 Alta',    '#ffedd5', '#e67e22', '#9a3412'),
+        ('Media',   '🟡 Média',   '#fef9c3', '#ca8a04', '#854d0e'),
+        ('Baixa',   '🟢 Baixa',   '#dcfce7', '#27ae60', '#166534')
+    ] %}
+    {% set ativo = (prioridade_ativa == nivel) %}
+    {% if termo_busca is defined and termo_busca %}
+        {% set href = url_for('buscar', q=termo_busca, prioridade=nivel) %}
+    {% else %}
+        {% set href = url_for('index', prioridade=nivel) %}
+    {% endif %}
+    <a href="{{ href }}"
+       style="padding: 5px 14px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold;
+              border: 2px solid {{ cor_borda }};
+              background: {% if ativo %}{{ cor_borda }}{% else %}{{ cor_bg }}{% endif %};
+              color: {% if ativo %}white{% else %}{{ cor_texto }}{% endif %};">
+        {{ label }}
+    </a>
+    {% endfor %}
+
+    {% if prioridade_ativa %}
+    <span style="margin-left: 8px; font-size: 13px; color: #6b7280;">
+        — mostrando apenas <strong>{{ prioridade_ativa }}</strong>
+        {% if termo_busca is defined and termo_busca %} + busca "{{ termo_busca }}"{% endif %}
+    </span>
+    {% endif %}
+</div>
+
 <table border="1" cellpadding="10" cellspacing="0" width="100%">
     <thead>
         <tr bgcolor="#cccccc">
@@ -41,6 +81,13 @@
             </td>
         </tr>
         {% endfor %}
+        {% if demandas | length == 0 %}
+        <tr>
+            <td colspan="6" style="text-align:center; color:#6b7280; padding: 24px;">
+                Nenhuma demanda encontrada para os filtros aplicados.
+            </td>
+        </tr>
+        {% endif %}
     </tbody>
 </table>
 
