@@ -3,39 +3,39 @@
 {% block content %}
 <h2>Editar Demanda</h2>
 
-<form method="POST" action="/editar/{{ demanda[0] }}">
+<form method="POST" action="/editar/{{ demanda['id'] }}">
     <div>
         <label>Título:</label><br>
-        <input type="text" name="titulo" value="{{ demanda[1] }}" size="50">
+        <input type="text" name="titulo" value="{{ demanda['titulo'] }}" size="50">
     </div>
     <br>
 
     <div>
         <label>Descrição:</label><br>
-        <textarea name="descricao" rows="5" cols="50">{{ demanda[2] }}</textarea>
+        <textarea name="descricao" rows="5" cols="50">{{ demanda['descricao'] }}</textarea>
     </div>
     <br>
 
     <div>
         <label>Solicitante:</label><br>
-        <input type="text" name="solicitante" value="{{ demanda[3] }}">
+        <input type="text" name="solicitante" value="{{ demanda['solicitante'] }}">
     </div>
     <br>
 
     <div>
         <label>Prioridade:</label><br>
         <select name="prioridade">
-            <option value="Baixa"   {% if demanda[5] == 'Baixa'   %}selected{% endif %}>🟢 Baixa</option>
-            <option value="Media"   {% if demanda[5] == 'Media'   %}selected{% endif %}>🟡 Média</option>
-            <option value="Alta"    {% if demanda[5] == 'Alta'    %}selected{% endif %}>🟠 Alta</option>
-            <option value="Critica" {% if demanda[5] == 'Critica' %}selected{% endif %}>🔴 Crítica</option>
+            <option value="Baixa"   {% if demanda['prioridade'] == 'Baixa'   %}selected{% endif %}>🟢 Baixa</option>
+            <option value="Media"   {% if demanda['prioridade'] == 'Media'   %}selected{% endif %}>🟡 Média</option>
+            <option value="Alta"    {% if demanda['prioridade'] == 'Alta'    %}selected{% endif %}>🟠 Alta</option>
+            <option value="Critica" {% if demanda['prioridade'] == 'Critica' %}selected{% endif %}>🔴 Crítica</option>
         </select>
     </div>
     <br>
 
     <div>
         <label>Data de Criação:</label><br>
-        <input type="text" value="{{ demanda[4] }}" disabled>
+        <input type="text" value="{{ demanda['data_criacao'] }}" disabled>
     </div>
     <br>
 

@@ -1,21 +1,27 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Detalhes da Demanda #{{ demanda[0] }}</h2>
+<h2>Detalhes da Demanda #{{ demanda['id'] }}</h2>
 
 <div style="border:1px solid #ccc; padding:15px; margin-bottom:20px;">
-    <h3>{{ demanda[1] }}</h3>
+    <h3>{{ demanda['titulo'] }}</h3>
     <p><strong>Descrição:</strong></p>
-    <p>{{ demanda[2] }}</p>
+    <p>{{ demanda['descricao'] }}</p>
 
-    <p><strong>Solicitante:</strong> {{ demanda[3] }}</p>
-    <p><strong>Data de Criação:</strong> {{ demanda[4] }}</p>
+    <p><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</p>
+    <!-- Card 6: exibe o responsável via JOIN -->
+    <p><strong>Criado por:</strong>
+        {% if demanda['nome_criador'] %}
+            {{ demanda['nome_criador'] }} <span style="color:#6b7280;font-size:13px;">({{ demanda['email_criador'] }})</span>
+        {% else %}—{% endif %}
+    </p>
+    <p><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</p>
     <p><strong>Prioridade:</strong>
-        {% if demanda[5] == 'Critica' %}
+        {% if demanda['prioridade'] == 'Critica' %}
             <span style="background:#c0392b;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Crítica</span>
-        {% elif demanda[5] == 'Alta' %}
+        {% elif demanda['prioridade'] == 'Alta' %}
             <span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟠 Alta</span>
-        {% elif demanda[5] == 'Media' %}
+        {% elif demanda['prioridade'] == 'Media' %}
             <span style="background:#f1c40f;color:#333;padding:3px 10px;border-radius:12px;font-weight:bold;">🟡 Média</span>
         {% else %}
             <span style="background:#27ae60;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟢 Baixa</span>
@@ -23,24 +29,59 @@
     </p>
 
     <br>
-    <a href="/editar/{{ demanda[0] }}"><button>Editar</button></a>
+    <a href="/editar/{{ demanda['id'] }}"><button>Editar</button></a>
+    {% if session.usuario_cargo == 'admin' or demanda['criado_por'] == session.usuario_id %}
+    <a href="/deletar/{{ demanda['id'] }}" style="color:red;"><button>Deletar</button></a>
+    {% endif %}
     <a href="/"><button>Voltar</button></a>
 </div>
+
+<!-- Card 7: Histórico de edições -->
+{% if historico %}
+<h3>📋 Histórico de Edições</h3>
+<table border="1" cellpadding="8" cellspacing="0" width="100%" style="margin-bottom: 20px;">
+    <thead>
+        <tr bgcolor="#e8e8e8">
+            <th>Data</th>
+            <th>Editor</th>
+            <th>Campo</th>
+            <th>Valor Anterior</th>
+            <th>Novo Valor</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for h in historico %}
+        <tr>
+            <td>{{ h['data'] }}</td>
+            <td>
+                {% if h['nome_editor'] %}
+                    {{ h['nome_editor'] }}<br>
+                    <span style="font-size:11px;color:#6b7280;">{{ h['email_editor'] }}</span>
+                {% else %}—{% endif %}
+            </td>
+            <td><strong>{{ h['campo_alterado'] }}</strong></td>
+            <td style="color:#c0392b;">{{ h['valor_anterior'] }}</td>
+            <td style="color:#27ae60;">{{ h['valor_novo'] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
 
 <h3>Comentários</h3>
 
 {% for comentario in comentarios %}
 <div style="background:#f0f0f0; padding:10px; margin:10px 0;">
-    <p><strong>{{ comentario[3] }}</strong> em {{ comentario[4] }}</p>
-    <p>{{ comentario[2] }}</p>
+    <p><strong>{{ comentario['autor'] }}</strong> em {{ comentario['data'] }}</p>
+    <p>{{ comentario['comentario'] }}</p>
 </div>
 {% endfor %}
 
 <h4>Adicionar Comentário</h4>
-<form method="POST" action="/adicionar_comentario/{{ demanda[0] }}">
+<form method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
     <div>
         <label>Seu nome:</label><br>
-        <input type="text" name="autor" size="30">
+        <input type="text" name="autor" size="30" value="{{ session.usuario_nome }}">
     </div>
     <br>
     <div>
