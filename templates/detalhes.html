@@ -17,9 +17,7 @@
     </p>
     <p><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</p>
     <p><strong>Prioridade:</strong>
-        {% if demanda['prioridade'] == 'Critica' %}
-            <span style="background:#c0392b;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Crítica</span>
-        {% elif demanda['prioridade'] == 'Alta' %}
+        {% if demanda['prioridade'] == 'Alta' %}
             <span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟠 Alta</span>
         {% elif demanda['prioridade'] == 'Media' %}
             <span style="background:#f1c40f;color:#333;padding:3px 10px;border-radius:12px;font-weight:bold;">🟡 Média</span>

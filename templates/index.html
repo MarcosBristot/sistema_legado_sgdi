@@ -15,7 +15,6 @@
     </a>
 
     {% for nivel, label, cor_bg, cor_borda, cor_texto in [
-        ('Critica', '🔴 Crítica', '#fee2e2', '#c0392b', '#991b1b'),
         ('Alta',    '🟠 Alta',    '#ffedd5', '#e67e22', '#9a3412'),
         ('Media',   '🟡 Média',   '#fef9c3', '#ca8a04', '#854d0e'),
         ('Baixa',   '🟢 Baixa',   '#dcfce7', '#27ae60', '#166534')
@@ -86,9 +85,7 @@
                 {% else %}—{% endif %}
             </td>
             <td>
-                {% if demanda['prioridade'] == 'Critica' %}
-                    <span style="background:#c0392b;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Crítica</span>
-                {% elif demanda['prioridade'] == 'Alta' %}
+                {% if demanda['prioridade'] == 'Alta' %}
                     <span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟠 Alta</span>
                 {% elif demanda['prioridade'] == 'Media' %}
                     <span style="background:#f1c40f;color:#333;padding:3px 10px;border-radius:12px;font-weight:bold;">🟡 Média</span>
