@@ -7,9 +7,9 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'sgdi_sprint3_secret_2026'
 
-ORDEM_PRIORIDADE = "CASE prioridade WHEN 'Critica' THEN 1 WHEN 'Alta' THEN 2 WHEN 'Media' THEN 3 WHEN 'Baixa' THEN 4 END"
+ORDEM_PRIORIDADE = "CASE prioridade WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 WHEN 'Baixa' THEN 3 END"
 
-PRIORIDADES_VALIDAS = {'Critica', 'Alta', 'Media', 'Baixa'}
+PRIORIDADES_VALIDAS = {'Alta', 'Media', 'Baixa'}
 
 
 def get_db():
