@@ -362,9 +362,22 @@
 
 <!-- Tabela Demandas Críticas -->
 {% if criticas %}
-<div class="chart-card" style="margin-bottom:20px;">
-    <h3 style="color:#9a3412;">🔴 Demandas Críticas em Aberto (Alta Prioridade)</h3>
-    <table class="crit-table">
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+    <h3 style="color:#9a3412; margin:0;">🔴 Demandas Críticas em Aberto (Alta Prioridade)</h3>
+    <div style="display:flex; gap:8px;">
+        <a href="/exportar_criticas_csv">
+            <button style="background:#16a34a; font-size:12px; padding:6px 14px;">
+                ⬇ CSV
+            </button>
+        </a>
+        <a href="/exportar_criticas_pdf">
+            <button style="background:#1d4ed8; font-size:12px; padding:6px 14px;">
+                ⬇ PDF
+            </button>
+        </a>
+    </div>
+</div>
+</div>
         <thead>
             <tr>
                 <th>ID</th>

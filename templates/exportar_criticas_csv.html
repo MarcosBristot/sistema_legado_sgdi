@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #1a1a1a;
+            margin: 40px;
+        }
+        h1 {
+            font-size: 16px;
+            color: #9a3412;
+            margin-bottom: 4px;
+        }
+        .sub {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        th {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        tr:nth-child(even) td {
+            background-color: #f9fafb;
+        }
+        .footer {
+            margin-top: 32px;
+            font-size: 10px;
+            color: #9ca3af;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🔴 Demandas Críticas Atrasadas — Alta Prioridade</h1>
+<div class="sub">Gerado em {{ gerado_em }}</div>
+
+{% if criticas %}
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Título</th>
+            <th>Solicitante</th>
+            <th>Responsável</th>
+            <th>Data Criação</th>
+            <th>Prazo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in criticas %}
+        <tr>
+            <td>#{{ d['id'] }}</td>
+            <td>{{ d['titulo'] }}</td>
+            <td>{{ d['solicitante'] }}</td>
+            <td>{{ d['responsavel'] or '—' }}</td>
+            <td>{{ d['data_criacao'] }}</td>
+            <td>{{ d['prazo'] or 'sem prazo' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p style="margin-top:12px; font-size:11px; color:#374151;">
+    Total: <strong>{{ criticas | length }} demanda{% if criticas | length != 1 %}s{% endif %}</strong>
+</p>
+{% else %}
+<p style="color:#6b7280;">Nenhuma demanda crítica atrasada encontrada.</p>
+{% endif %}
+
+<div class="footer">Gerado em {{ gerado_em }}</div>
+
+</body>
+</html>

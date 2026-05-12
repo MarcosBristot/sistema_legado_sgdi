@@ -1,4 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
+import sqlite3
+import csv
+import io
+from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import sqlite3
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -573,5 +579,135 @@ def dashboard():
     )
 
 
+# ── Exportar críticas CSV ─────────────────────────────────────────────────────
+@app.route('/exportar_criticas_csv')
+@login_required
+def exportar_criticas_csv():
+    hoje = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sete_dias_atras = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+    criticas = conn.execute("""
+        SELECT d.id, d.titulo, d.solicitante, u.nome AS responsavel,
+               d.data_criacao, d.prazo, d.status
+        FROM demandas d
+        LEFT JOIN usuarios u ON d.criado_por = u.id
+        WHERE d.prioridade = 'Alta'
+          AND (d.status = 'Aberta' OR d.status IS NULL)
+          AND (
+              (d.prazo IS NOT NULL AND d.prazo < ?)
+              OR
+              (d.prazo IS NULL AND d.data_criacao < ?)
+          )
+        ORDER BY d.data_criacao ASC
+    """, (hoje, sete_dias_atras)).fetchall()
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Título', 'Solicitante', 'Responsável',
+                     'Data Criação', 'Prazo', 'Status'])
+    for d in criticas:
+        writer.writerow([
+            d['id'], d['titulo'], d['solicitante'], d['responsavel'] or '—',
+            d['data_criacao'], d['prazo'] or 'sem prazo', d['status'] or 'Aberta'
+        ])
+
+    output.seek(0)
+    nome_arquivo = f"criticas_atrasadas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    return Response(
+        output.getvalue().encode('utf-8-sig'),  # utf-8-sig abre corretamente no Excel
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={nome_arquivo}'}
+    )
+
+
+@app.route('/exportar_criticas_pdf')
+@login_required
+def exportar_criticas_pdf():
+    hoje = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sete_dias_atras = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+    criticas = conn.execute("""
+        SELECT d.id, d.titulo, d.solicitante, u.nome AS responsavel,
+               d.data_criacao, d.prazo
+        FROM demandas d
+        LEFT JOIN usuarios u ON d.criado_por = u.id
+        WHERE d.prioridade = 'Alta'
+          AND (d.status = 'Aberta' OR d.status IS NULL)
+          AND (
+              (d.prazo IS NOT NULL AND d.prazo < ?)
+              OR
+              (d.prazo IS NULL AND d.data_criacao < ?)
+          )
+        ORDER BY d.data_criacao ASC
+    """, (hoje, sete_dias_atras)).fetchall()
+    conn.close()
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Título e data
+    elements.append(Paragraph("Demandas Críticas Atrasadas — Alta Prioridade", styles['Title']))
+    agora_fmt = datetime.now().strftime('%d/%m/%Y às %H:%M')
+    elements.append(Paragraph(f"Gerado em {agora_fmt}", styles['Normal']))
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Tabela
+    cabecalho = ['ID', 'Título', 'Solicitante', 'Responsável', 'Criado em', 'Prazo']
+    dados = [cabecalho]
+    for d in criticas:
+        dados.append([
+            f"#{d['id']}",
+            d['titulo'],
+            d['solicitante'],
+            d['responsavel'] or '—',
+            d['data_criacao'],
+            d['prazo'] or 'sem prazo',
+        ])
+
+    if len(dados) == 1:
+        elements.append(Paragraph("Nenhuma demanda crítica atrasada encontrada.", styles['Normal']))
+    else:
+        tabela = Table(dados, colWidths=[1.2*cm, 5.5*cm, 3*cm, 3*cm, 3.5*cm, 2.8*cm])
+        tabela.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0, 0), (-1, 0), 9),
+            ('FONTSIZE',   (0, 1), (-1, -1), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+            ('GRID',       (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            ('PADDING',    (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(tabela)
+        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Paragraph(
+            f"Total: {len(criticas)} demanda{'s' if len(criticas) != 1 else ''}",
+            styles['Normal']
+        ))
+
+    doc.build(elements)
+    buffer.seek(0)
+    nome_arquivo = f"criticas_atrasadas_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return Response(
+        buffer.getvalue(),
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={nome_arquivo}'}
+    )
+    
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
