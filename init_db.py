@@ -3,7 +3,7 @@ import sqlite3
 conn = sqlite3.connect('demandas.db')
 cursor = conn.cursor()
 
-# Tabela de usuários (Card 1)
+# Tabela de usuários
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 )
 ''')
 
-# Tabela de demandas com FK para usuário criador (Card 5)
+# Tabela de demandas com status e data_conclusao
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS demandas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,10 +24,27 @@ CREATE TABLE IF NOT EXISTS demandas (
     solicitante TEXT,
     data_criacao TEXT,
     prioridade TEXT DEFAULT 'Media',
+    status TEXT DEFAULT 'Aberta',
+    data_conclusao TEXT,
+    prazo TEXT,
     criado_por INTEGER,
     FOREIGN KEY (criado_por) REFERENCES usuarios(id)
 )
 ''')
+
+# Adicionar colunas se não existirem (migração)
+try:
+    cursor.execute("ALTER TABLE demandas ADD COLUMN status TEXT DEFAULT 'Aberta'")
+except:
+    pass
+try:
+    cursor.execute("ALTER TABLE demandas ADD COLUMN data_conclusao TEXT")
+except:
+    pass
+try:
+    cursor.execute("ALTER TABLE demandas ADD COLUMN prazo TEXT")
+except:
+    pass
 
 # Tabela de comentários
 cursor.execute('''
@@ -40,7 +57,7 @@ CREATE TABLE IF NOT EXISTS comentarios (
 )
 ''')
 
-# Tabela de histórico de edições (Card 7)
+# Tabela de histórico de edições
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS historico_edicoes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,4 +75,4 @@ CREATE TABLE IF NOT EXISTS historico_edicoes (
 conn.commit()
 conn.close()
 
-print("Banco de dados criado com sucesso!")
+print("Banco de dados criado/atualizado com sucesso!")

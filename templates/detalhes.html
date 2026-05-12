@@ -9,13 +9,25 @@
     <p>{{ demanda['descricao'] }}</p>
 
     <p><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</p>
-    <!-- Card 6: exibe o responsável via JOIN -->
     <p><strong>Criado por:</strong>
         {% if demanda['nome_criador'] %}
             {{ demanda['nome_criador'] }} <span style="color:#6b7280;font-size:13px;">({{ demanda['email_criador'] }})</span>
         {% else %}—{% endif %}
     </p>
     <p><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</p>
+    {% if demanda['data_conclusao'] %}
+    <p><strong>Data de Conclusão:</strong> {{ demanda['data_conclusao'] }}</p>
+    {% endif %}
+    {% if demanda['prazo'] %}
+    <p><strong>Prazo de Resolução:</strong>
+        {% set st = demanda['status'] or 'Aberta' %}
+        {% if st == 'Aberta' and demanda['prazo'] < now_date %}
+            <span style="color:#dc2626;font-weight:bold;">{{ demanda['prazo'] }} ⚠️ Vencido</span>
+        {% else %}
+            {{ demanda['prazo'] }}
+        {% endif %}
+    </p>
+    {% endif %}
     <p><strong>Prioridade:</strong>
         {% if demanda['prioridade'] == 'Alta' %}
             <span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟠 Alta</span>
@@ -25,16 +37,37 @@
             <span style="background:#27ae60;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟢 Baixa</span>
         {% endif %}
     </p>
+    <p><strong>Status:</strong>
+        {% set st = demanda['status'] or 'Aberta' %}
+        {% if st == 'Concluida' %}
+            <span style="background:#16a34a;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">✅ Concluída</span>
+        {% elif st == 'Cancelada' %}
+            <span style="background:#6b7280;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">⛔ Cancelada</span>
+        {% elif st == 'Atrasada' %}
+            <span style="background:#dc2626;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Atrasada</span>
+        {% else %}
+            <span style="background:#3b82f6;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔵 Aberta</span>
+        {% endif %}
+    </p>
 
     <br>
     <a href="/editar/{{ demanda['id'] }}"><button>Editar</button></a>
-    {% if session.usuario_cargo == 'admin' or demanda['criado_por'] == session.usuario_id %}
-    <a href="/deletar/{{ demanda['id'] }}" style="color:red;"><button>Deletar</button></a>
+    {% if st not in ('Concluida', 'Cancelada') %}
+    <a href="/concluir/{{ demanda['id'] }}" onclick="return confirm('Marcar como concluída?')">
+        <button style="background:#16a34a;">✔ Concluir</button>
+    </a>
     {% endif %}
-    <a href="/"><button>Voltar</button></a>
+    {% if session.usuario_cargo == 'admin' or demanda['criado_por'] == session.usuario_id %}
+    {% set st = demanda['status'] or 'Aberta' %}
+    {% if st != 'Cancelada' %}
+    <a href="/cancelar/{{ demanda['id'] }}" onclick="return confirm('Cancelar esta demanda?')">
+        <button style="background:#92400e;">⛔ Cancelar</button>
+    </a>
+    {% endif %}
+    {% endif %}
+    <a href="/"><button type="button">Voltar</button></a>
 </div>
 
-<!-- Card 7: Histórico de edições -->
 {% if historico %}
 <h3>📋 Histórico de Edições</h3>
 <table border="1" cellpadding="8" cellspacing="0" width="100%" style="margin-bottom: 20px;">

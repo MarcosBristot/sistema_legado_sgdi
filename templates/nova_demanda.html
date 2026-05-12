@@ -1,29 +1,14 @@
 {% extends "base.html" %}
-
 {% block content %}
 <h2>Nova Demanda</h2>
-
 <form method="POST" action="/nova_demanda">
-    <div>
-        <label>Título:</label><br>
-        <input type="text" name="titulo" size="50" required>
-    </div>
+    <div><label>Título:</label><br><input type="text" name="titulo" size="50" required></div>
     <br>
-
-    <div>
-        <label>Descrição:</label><br>
-        <textarea name="descricao" rows="5" cols="50" required></textarea>
-    </div>
+    <div><label>Descrição:</label><br><textarea name="descricao" rows="5" cols="50" required></textarea></div>
     <br>
-
-    <div>
-        <label>Solicitante:</label><br>
-        <input type="text" name="solicitante" required>
-    </div>
+    <div><label>Solicitante:</label><br><input type="text" name="solicitante" required></div>
     <br>
-
-    <div>
-        <label>Prioridade:</label><br>
+    <div><label>Prioridade:</label><br>
         <select name="prioridade">
             <option value="Baixa">🟢 Baixa</option>
             <option value="Media">🟡 Média</option>
@@ -31,9 +16,13 @@
         </select>
     </div>
     <br>
-
+    <div>
+        <label>Prazo de Resolução:</label><br>
+        <input type="date" name="prazo">
+        <span style="font-size:12px;color:#6b7280;">— opcional. Sem prazo definido, o sistema considera 7 dias a partir da criação.</span>
+    </div>
+    <br>
     <button type="submit">Salvar</button>
     <a href="/"><button type="button">Cancelar</button></a>
 </form>
-
 {% endblock %}

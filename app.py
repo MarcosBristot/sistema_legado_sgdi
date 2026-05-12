@@ -1,15 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'sgdi_sprint3_secret_2026'
 
-ORDEM_PRIORIDADE = "CASE prioridade WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 WHEN 'Baixa' THEN 3 END"
+@app.context_processor
+def inject_now():
+    return {'now_date': datetime.now().strftime('%Y-%m-%d')}
+
+ORDEM_PRIORIDADE = "CASE d.prioridade WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 WHEN 'Baixa' THEN 3 END"
 
 PRIORIDADES_VALIDAS = {'Alta', 'Media', 'Baixa'}
+STATUS_VALIDOS = {'Aberta', 'Concluida', 'Cancelada', 'Atrasada'}
 
 
 def get_db():
@@ -18,7 +23,6 @@ def get_db():
     return conn
 
 
-# ── Card 4: Decorator de proteção de rotas ────────────────────────────────────
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -29,7 +33,7 @@ def login_required(f):
     return decorated_function
 
 
-# ── Card 2: Cadastro de usuário ───────────────────────────────────────────────
+# ── Cadastro de usuário ───────────────────────────────────────────────────────
 @app.route('/novo_usuario', methods=['GET', 'POST'])
 def novo_usuario():
     if request.method == 'POST':
@@ -72,7 +76,7 @@ def novo_usuario():
     return render_template('novo_usuario.html')
 
 
-# ── Card 3: Login e sessão ────────────────────────────────────────────────────
+# ── Login e sessão ────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'usuario_id' in session:
@@ -83,9 +87,7 @@ def login():
         senha = request.form['senha'].strip()
 
         conn = get_db()
-        usuario = conn.execute(
-            'SELECT * FROM usuarios WHERE email = ?', (email,)
-        ).fetchone()
+        usuario = conn.execute('SELECT * FROM usuarios WHERE email = ?', (email,)).fetchone()
         conn.close()
 
         if usuario and check_password_hash(usuario['senha_hash'], senha):
@@ -107,16 +109,16 @@ def logout():
     return redirect(url_for('login'))
 
 
-# ── Card 4 + 6 + 8: Index com proteção, JOIN e filtro por usuário ─────────────
+# ── Index ─────────────────────────────────────────────────────────────────────
 @app.route('/')
 @login_required
 def index():
     prioridade = request.args.get('prioridade', '').strip()
     usuario_filtro = request.args.get('usuario_id', '').strip()
+    status_filtro = request.args.get('status', '').strip()
 
     conn = get_db()
 
-    # Card 6: JOIN com usuarios para exibir nome do criador
     base_query = f"""
         SELECT d.*, u.nome AS nome_criador, u.email AS email_criador
         FROM demandas d
@@ -132,7 +134,12 @@ def index():
     else:
         prioridade = ''
 
-    # Card 8: filtro por usuário específico
+    if status_filtro and status_filtro in STATUS_VALIDOS:
+        conditions.append("d.status = ?")
+        params.append(status_filtro)
+    else:
+        status_filtro = ''
+
     if usuario_filtro:
         conditions.append("d.criado_por = ?")
         params.append(usuario_filtro)
@@ -143,8 +150,6 @@ def index():
     base_query += f" ORDER BY {ORDEM_PRIORIDADE}"
 
     demandas = conn.execute(base_query, params).fetchall()
-
-    # Card 8: lista de usuários para o filtro no template
     usuarios = conn.execute('SELECT id, nome, email FROM usuarios ORDER BY nome').fetchall()
     conn.close()
 
@@ -152,12 +157,13 @@ def index():
         'index.html',
         demandas=demandas,
         prioridade_ativa=prioridade,
+        status_ativo=status_filtro,
         usuarios=usuarios,
         usuario_filtro_ativo=usuario_filtro
     )
 
 
-# ── Card 4 + 5: Nova demanda com proteção e registro do criador ───────────────
+# ── Nova demanda ──────────────────────────────────────────────────────────────
 @app.route('/nova_demanda', methods=['GET', 'POST'])
 @login_required
 def nova_demanda():
@@ -166,6 +172,7 @@ def nova_demanda():
         descricao = request.form['descricao'].strip()
         solicitante = request.form['solicitante'].strip()
         prioridade = request.form['prioridade'].strip()
+        prazo = request.form.get('prazo', '').strip()
 
         if not titulo or not descricao or not solicitante:
             flash('Todos os campos são obrigatórios.')
@@ -173,8 +180,8 @@ def nova_demanda():
 
         conn = get_db()
         conn.execute(
-            "INSERT INTO demandas (titulo, descricao, solicitante, data_criacao, prioridade, criado_por) VALUES (?, ?, ?, ?, ?, ?)",
-            (titulo, descricao, solicitante, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), prioridade, session['usuario_id'])
+            "INSERT INTO demandas (titulo, descricao, solicitante, data_criacao, prioridade, status, prazo, criado_por) VALUES (?, ?, ?, ?, ?, 'Aberta', ?, ?)",
+            (titulo, descricao, solicitante, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), prioridade, prazo or None, session['usuario_id'])
         )
         conn.commit()
         conn.close()
@@ -185,7 +192,7 @@ def nova_demanda():
     return render_template('nova_demanda.html')
 
 
-# ── Card 4 + 7: Editar com proteção e registro de histórico ──────────────────
+# ── Editar ────────────────────────────────────────────────────────────────────
 @app.route('/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 def editar(id):
@@ -196,6 +203,8 @@ def editar(id):
         descricao = request.form['descricao'].strip()
         solicitante = request.form['solicitante'].strip()
         prioridade = request.form['prioridade'].strip()
+        status = request.form.get('status', '').strip()
+        prazo = request.form.get('prazo', '').strip()
 
         demanda_atual = conn.execute('SELECT * FROM demandas WHERE id=?', (id,)).fetchone()
 
@@ -204,12 +213,19 @@ def editar(id):
             conn.close()
             return render_template('editar.html', demanda=demanda_atual)
 
-        # Card 7: registrar histórico de cada campo alterado
+        data_conclusao = demanda_atual['data_conclusao']
+        if status in ('Concluida', 'Cancelada') and demanda_atual['status'] not in ('Concluida', 'Cancelada'):
+            data_conclusao = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        elif status == 'Aberta':
+            data_conclusao = None
+
         campos = {
             'titulo': (demanda_atual['titulo'], titulo),
             'descricao': (demanda_atual['descricao'], descricao),
             'solicitante': (demanda_atual['solicitante'], solicitante),
             'prioridade': (demanda_atual['prioridade'], prioridade),
+            'status': (demanda_atual['status'] or 'Aberta', status),
+            'prazo': (demanda_atual['prazo'] or '', prazo),
         }
         agora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         for campo, (anterior, novo) in campos.items():
@@ -220,8 +236,8 @@ def editar(id):
                 )
 
         conn.execute(
-            "UPDATE demandas SET titulo=?, descricao=?, solicitante=?, prioridade=? WHERE id=?",
-            (titulo, descricao, solicitante, prioridade, id)
+            "UPDATE demandas SET titulo=?, descricao=?, solicitante=?, prioridade=?, status=?, data_conclusao=?, prazo=? WHERE id=?",
+            (titulo, descricao, solicitante, prioridade, status, data_conclusao, prazo or None, id)
         )
         conn.commit()
         conn.close()
@@ -233,11 +249,12 @@ def editar(id):
     return render_template('editar.html', demanda=demanda)
 
 
-@app.route('/deletar/<int:id>')
+# ── Cancelar demanda (substitui deletar) ──────────────────────────────────────
+@app.route('/cancelar/<int:id>')
 @login_required
-def deletar(id):
+def cancelar(id):
     conn = get_db()
-    demanda = conn.execute('SELECT criado_por FROM demandas WHERE id=?', (id,)).fetchone()
+    demanda = conn.execute('SELECT * FROM demandas WHERE id=?', (id,)).fetchone()
     if not demanda:
         conn.close()
         flash('Demanda não encontrada.')
@@ -246,22 +263,59 @@ def deletar(id):
     eh_dono = demanda['criado_por'] == session['usuario_id']
     if not eh_admin and not eh_dono:
         conn.close()
-        flash('Você não tem permissão para excluir esta demanda.')
+        flash('Você não tem permissão para cancelar esta demanda.')
         return redirect('/')
-    conn.execute('DELETE FROM demandas WHERE id=?', (id,))
+    agora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute(
+        "UPDATE demandas SET status='Cancelada', data_conclusao=? WHERE id=?",
+        (agora, id)
+    )
+    conn.execute(
+        "INSERT INTO historico_edicoes (demanda_id, usuario_id, data, campo_alterado, valor_anterior, valor_novo) VALUES (?, ?, ?, 'status', ?, 'Cancelada')",
+        (id, session['usuario_id'], agora, demanda['status'] or 'Aberta')
+    )
     conn.commit()
     conn.close()
-    flash('Demanda deletada!')
-    return redirect('/')
+    flash('Demanda cancelada.')
+    return redirect(request.referrer or '/')
 
 
-# ── Card 4 + 8: Buscar com proteção e filtro por usuário ─────────────────────
+# ── Concluir demanda (ação rápida) ────────────────────────────────────────────
+@app.route('/concluir/<int:id>')
+@login_required
+def concluir(id):
+    conn = get_db()
+    demanda = conn.execute('SELECT * FROM demandas WHERE id=?', (id,)).fetchone()
+    if not demanda:
+        conn.close()
+        flash('Demanda não encontrada.')
+        return redirect('/')
+
+    agora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute(
+        "UPDATE demandas SET status='Concluida', data_conclusao=? WHERE id=?",
+        (agora, id)
+    )
+    conn.execute(
+        "INSERT INTO historico_edicoes (demanda_id, usuario_id, data, campo_alterado, valor_anterior, valor_novo) VALUES (?, ?, ?, 'status', ?, 'Concluida')",
+        (id, session['usuario_id'], agora, demanda['status'] or 'Aberta')
+    )
+    conn.commit()
+    conn.close()
+    flash('Demanda concluída com sucesso!')
+    return redirect(request.referrer or '/')
+
+
+# ── Deletar ───────────────────────────────────────────────────────────────────
+
+# ── Buscar ────────────────────────────────────────────────────────────────────
 @app.route('/buscar')
 @login_required
 def buscar():
     termo = request.args.get('q', '')
     prioridade = request.args.get('prioridade', '').strip()
     usuario_filtro = request.args.get('usuario_id', '').strip()
+    status_filtro = request.args.get('status', '').strip()
 
     conn = get_db()
 
@@ -279,6 +333,12 @@ def buscar():
     else:
         prioridade = ''
 
+    if status_filtro and status_filtro in STATUS_VALIDOS:
+        base_query += " AND d.status = ?"
+        params.append(status_filtro)
+    else:
+        status_filtro = ''
+
     if usuario_filtro:
         base_query += " AND d.criado_por = ?"
         params.append(usuario_filtro)
@@ -293,13 +353,14 @@ def buscar():
         'index.html',
         demandas=resultados,
         prioridade_ativa=prioridade,
+        status_ativo=status_filtro,
         termo_busca=termo,
         usuarios=usuarios,
         usuario_filtro_ativo=usuario_filtro
     )
 
 
-# ── Card 4 + 6: Detalhes com proteção e exibição do criador ──────────────────
+# ── Detalhes ──────────────────────────────────────────────────────────────────
 @app.route('/detalhes/<int:id>')
 @login_required
 def detalhes(id):
@@ -341,8 +402,175 @@ def adicionar_comentario(demanda_id):
     )
     conn.commit()
     conn.close()
-
     return redirect(f'/detalhes/{demanda_id}')
+
+
+# ── Dashboard Gerencial ───────────────────────────────────────────────────────
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    conn = get_db()
+
+    # Filtros
+    periodo = request.args.get('periodo', '30')  # dias
+    usuario_filtro = request.args.get('usuario_id', '')
+    prioridade_filtro = request.args.get('prioridade', '')
+    status_filtro = request.args.get('status', '')
+
+    try:
+        dias = int(periodo)
+    except:
+        dias = 30
+
+    data_limite = (datetime.now() - timedelta(days=dias)).strftime('%Y-%m-%d %H:%M:%S')
+    hoje = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Base conditions
+    cond_periodo = "d.data_criacao >= ?"
+    params_base = [data_limite]
+
+    cond_extra = []
+    if usuario_filtro:
+        cond_extra.append("d.criado_por = ?")
+        params_base.append(usuario_filtro)
+    if prioridade_filtro and prioridade_filtro in PRIORIDADES_VALIDAS:
+        cond_extra.append("d.prioridade = ?")
+        params_base.append(prioridade_filtro)
+    if status_filtro and status_filtro in STATUS_VALIDOS:
+        cond_extra.append("d.status = ?")
+        params_base.append(status_filtro)
+
+    where_clause = "WHERE " + cond_periodo
+    if cond_extra:
+        where_clause += " AND " + " AND ".join(cond_extra)
+
+    # KPI: Total de demandas
+    total = conn.execute(
+        f"SELECT COUNT(*) as c FROM demandas d {where_clause}", params_base
+    ).fetchone()['c']
+
+    # KPI: Por status
+    por_status = conn.execute(
+        f"""SELECT COALESCE(d.status, 'Aberta') as status, COUNT(*) as c
+            FROM demandas d {where_clause}
+            GROUP BY COALESCE(d.status, 'Aberta')""",
+        params_base
+    ).fetchall()
+
+    status_map = {'Aberta': 0, 'Concluida': 0, 'Cancelada': 0, 'Atrasada': 0}
+    for row in por_status:
+        status_map[row['status']] = row['c']
+
+    # Identificar atrasadas:
+    # - Se tem prazo definido: abertas com prazo vencido (prazo < hoje)
+    # - Se não tem prazo: abertas criadas há mais de 7 dias (fallback)
+    atrasadas = conn.execute(
+        f"""SELECT COUNT(*) as c FROM demandas d
+            {where_clause}
+            AND (d.status = 'Aberta' OR d.status IS NULL)
+            AND (
+                (d.prazo IS NOT NULL AND d.prazo < ?)
+                OR
+                (d.prazo IS NULL AND d.data_criacao < ?)
+            )""",
+        params_base + [hoje, (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')]
+    ).fetchone()['c']
+    status_map['Atrasada'] = atrasadas
+
+    # KPI: Demandas críticas (Alta prioridade abertas)
+    criticas = conn.execute(
+        f"""SELECT d.*, u.nome AS nome_criador FROM demandas d
+            LEFT JOIN usuarios u ON d.criado_por = u.id
+            {where_clause}
+            AND d.prioridade = 'Alta'
+            AND (d.status = 'Aberta' OR d.status IS NULL)
+            ORDER BY d.data_criacao ASC
+            LIMIT 10""",
+        params_base
+    ).fetchall()
+
+    # KPI: Por responsável
+    por_responsavel = conn.execute(
+        f"""SELECT u.nome, u.email, COUNT(*) as total,
+                   SUM(CASE WHEN (d.status = 'Aberta' OR d.status IS NULL) THEN 1 ELSE 0 END) as abertas,
+                   SUM(CASE WHEN d.status = 'Concluida' THEN 1 ELSE 0 END) as concluidas
+            FROM demandas d
+            LEFT JOIN usuarios u ON d.criado_por = u.id
+            {where_clause}
+            GROUP BY d.criado_por, u.nome, u.email
+            ORDER BY abertas DESC
+            LIMIT 10""",
+        params_base
+    ).fetchall()
+
+    # KPI: Tempo médio de resolução (excluindo canceladas)
+    tempo_medio_row = conn.execute(
+        f"""SELECT AVG(
+                JULIANDAY(d.data_conclusao) - JULIANDAY(d.data_criacao)
+            ) as media_dias
+            FROM demandas d
+            {where_clause}
+            AND d.status = 'Concluida'
+            AND d.data_conclusao IS NOT NULL""",
+        params_base
+    ).fetchone()
+    tempo_medio = round(tempo_medio_row['media_dias'] or 0, 1)
+
+    # KPI: Por prioridade
+    por_prioridade = conn.execute(
+        f"""SELECT d.prioridade, COUNT(*) as c
+            FROM demandas d {where_clause}
+            GROUP BY d.prioridade""",
+        params_base
+    ).fetchall()
+
+    prio_map = {'Alta': 0, 'Media': 0, 'Baixa': 0}
+    for row in por_prioridade:
+        if row['prioridade'] in prio_map:
+            prio_map[row['prioridade']] = row['c']
+
+    # Evolução temporal (últimos N dias agrupado por semana)
+    evolucao = conn.execute(
+        f"""SELECT
+                strftime('%Y-%W', d.data_criacao) as semana,
+                COUNT(*) as criadas,
+                SUM(CASE WHEN d.status = 'Concluida' THEN 1 ELSE 0 END) as concluidas
+            FROM demandas d {where_clause}
+            GROUP BY semana
+            ORDER BY semana""",
+        params_base
+    ).fetchall()
+
+    # Demandas sem responsável
+    sem_responsavel = conn.execute(
+        f"""SELECT COUNT(*) as c FROM demandas d
+            {where_clause}
+            AND d.criado_por IS NULL""",
+        params_base
+    ).fetchone()['c']
+
+    # Lista todos usuários para filtro
+    usuarios = conn.execute('SELECT id, nome, email FROM usuarios ORDER BY nome').fetchall()
+
+    conn.close()
+
+    return render_template(
+        'dashboard.html',
+        total=total,
+        status_map=status_map,
+        atrasadas=atrasadas,
+        criticas=criticas,
+        por_responsavel=por_responsavel,
+        tempo_medio=tempo_medio,
+        prio_map=prio_map,
+        evolucao=evolucao,
+        sem_responsavel=sem_responsavel,
+        periodo=periodo,
+        usuarios=usuarios,
+        usuario_filtro_ativo=usuario_filtro,
+        prioridade_ativa=prioridade_filtro,
+        status_ativo=status_filtro,
+    )
 
 
 if __name__ == '__main__':

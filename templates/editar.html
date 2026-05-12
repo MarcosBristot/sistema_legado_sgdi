@@ -33,10 +33,36 @@
     <br>
 
     <div>
+        <label>Status:</label><br>
+        <select name="status">
+            {% set st = demanda['status'] or 'Aberta' %}
+            <option value="Aberta"    {% if st == 'Aberta'    %}selected{% endif %}>🔵 Aberta</option>
+            <option value="Concluida" {% if st == 'Concluida' %}selected{% endif %}>✅ Concluída</option>
+            <option value="Cancelada" {% if st == 'Cancelada' %}selected{% endif %}>⛔ Cancelada</option>
+        </select>
+    </div>
+    <br>
+
+    <div>
+        <label>Prazo de Resolução:</label><br>
+        <input type="date" name="prazo" value="{{ demanda['prazo'] or '' }}">
+        <span style="font-size:12px;color:#6b7280;">— sem prazo definido, o sistema considera 7 dias a partir da criação.</span>
+    </div>
+    <br>
+
+    <div>
         <label>Data de Criação:</label><br>
         <input type="text" value="{{ demanda['data_criacao'] }}" disabled>
     </div>
     <br>
+
+    {% if demanda['data_conclusao'] %}
+    <div>
+        <label>Data de Conclusão/Cancelamento:</label><br>
+        <input type="text" value="{{ demanda['data_conclusao'] }}" disabled>
+    </div>
+    <br>
+    {% endif %}
 
     <button type="submit">Atualizar</button>
     <a href="/"><button type="button">Cancelar</button></a>

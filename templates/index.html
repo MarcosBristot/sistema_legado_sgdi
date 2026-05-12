@@ -4,7 +4,7 @@
 <h2>Lista de Demandas</h2>
 
 <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-    <span style="font-weight: bold; color: #374151; font-size: 14px;">Filtrar por prioridade:</span>
+    <span style="font-weight: bold; color: #374151; font-size: 14px;">Prioridade:</span>
 
     <a href="{{ url_for('index') }}"
        style="padding: 5px 14px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold;
@@ -21,9 +21,9 @@
     ] %}
     {% set ativo = (prioridade_ativa == nivel) %}
     {% if termo_busca is defined and termo_busca %}
-        {% set href = url_for('buscar', q=termo_busca, prioridade=nivel, usuario_id=usuario_filtro_ativo) %}
+        {% set href = url_for('buscar', q=termo_busca, prioridade=nivel, usuario_id=usuario_filtro_ativo, status=status_ativo) %}
     {% else %}
-        {% set href = url_for('index', prioridade=nivel, usuario_id=usuario_filtro_ativo) %}
+        {% set href = url_for('index', prioridade=nivel, usuario_id=usuario_filtro_ativo, status=status_ativo) %}
     {% endif %}
     <a href="{{ href }}"
        style="padding: 5px 14px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold;
@@ -35,15 +35,50 @@
     {% endfor %}
 </div>
 
-<!-- Card 8: Filtro por usuário criador -->
+<!-- Filtro por status -->
 <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-    <span style="font-weight: bold; color: #374151; font-size: 14px;">Filtrar por responsável:</span>
+    <span style="font-weight: bold; color: #374151; font-size: 14px;">Status:</span>
+    {% for st, label, cor_bg, cor_borda, cor_texto in [
+        ('Aberta',    '🔵 Aberta',    '#dbeafe', '#3b82f6', '#1e40af'),
+        ('Concluida', '✅ Concluída',  '#dcfce7', '#16a34a', '#166534'),
+        ('Cancelada', '⛔ Cancelada',  '#f3f4f6', '#6b7280', '#374151'),
+    ] %}
+    {% set ativo = (status_ativo == st) %}
+    {% if termo_busca is defined and termo_busca %}
+        {% set href = url_for('buscar', q=termo_busca, prioridade=prioridade_ativa, usuario_id=usuario_filtro_ativo, status=st) %}
+    {% else %}
+        {% set href = url_for('index', prioridade=prioridade_ativa, usuario_id=usuario_filtro_ativo, status=st) %}
+    {% endif %}
+    <a href="{{ href }}"
+       style="padding: 5px 14px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold;
+              border: 2px solid {{ cor_borda }};
+              background: {% if ativo %}{{ cor_borda }}{% else %}{{ cor_bg }}{% endif %};
+              color: {% if ativo %}white{% else %}{{ cor_texto }}{% endif %};">
+        {{ label }}
+    </a>
+    {% endfor %}
+    {% if status_ativo %}
+    {% if termo_busca is defined and termo_busca %}
+        <a href="{{ url_for('buscar', q=termo_busca, prioridade=prioridade_ativa, usuario_id=usuario_filtro_ativo) }}"
+    {% else %}
+        <a href="{{ url_for('index', prioridade=prioridade_ativa, usuario_id=usuario_filtro_ativo) }}"
+    {% endif %}
+       style="font-size:12px;color:#6b7280;text-decoration:none;">✕ limpar</a>
+    {% endif %}
+</div>
+
+<!-- Filtro por usuário criador -->
+<div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <span style="font-weight: bold; color: #374151; font-size: 14px;">Responsável:</span>
     <form method="GET" action="{% if termo_busca is defined and termo_busca %}/buscar{% else %}/{% endif %}" style="display:inline;">
         {% if termo_busca is defined and termo_busca %}
             <input type="hidden" name="q" value="{{ termo_busca }}">
         {% endif %}
         {% if prioridade_ativa %}
             <input type="hidden" name="prioridade" value="{{ prioridade_ativa }}">
+        {% endif %}
+        {% if status_ativo %}
+            <input type="hidden" name="status" value="{{ status_ativo }}">
         {% endif %}
         <select name="usuario_id" onchange="this.form.submit()" style="padding: 4px 10px; border-radius: 6px; font-size: 13px;">
             <option value="">— Todos —</option>
@@ -54,9 +89,6 @@
             {% endfor %}
         </select>
     </form>
-    {% if usuario_filtro_ativo %}
-        <span style="font-size: 13px; color: #6b7280;">— filtrando por responsável específico</span>
-    {% endif %}
 </div>
 
 <table border="1" cellpadding="10" cellspacing="0" width="100%">
@@ -67,17 +99,19 @@
             <th>Solicitante</th>
             <th>Criado por</th>
             <th>Prioridade</th>
+            <th>Status</th>
             <th>Data</th>
+            <th>Prazo</th>
             <th>Ações</th>
         </tr>
     </thead>
     <tbody>
         {% for demanda in demandas %}
-        <tr>
+        {% set status = demanda['status'] or 'Aberta' %}
+        <tr {% if status == 'Atrasada' %}style="background:#fff0f0;"{% elif status == 'Concluida' %}style="background:#f0fff4;"{% elif status == 'Cancelada' %}style="background:#f9fafb;opacity:0.75;"{% endif %}>
             <td>{{ demanda['id'] }}</td>
             <td>{{ demanda['titulo'] }}</td>
             <td>{{ demanda['solicitante'] }}</td>
-            <!-- Card 6: exibe nome do criador via JOIN -->
             <td>
                 {% if demanda['nome_criador'] %}
                     {{ demanda['nome_criador'] }}<br>
@@ -93,21 +127,46 @@
                     <span style="background:#27ae60;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🟢 Baixa</span>
                 {% endif %}
             </td>
+            <td>
+                {% if status == 'Concluida' %}
+                    <span style="background:#16a34a;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">✅ Concluída</span>
+                {% elif status == 'Cancelada' %}
+                    <span style="background:#6b7280;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">⛔ Cancelada</span>
+                {% elif status == 'Atrasada' %}
+                    <span style="background:#dc2626;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔴 Atrasada</span>
+                {% else %}
+                    <span style="background:#3b82f6;color:white;padding:3px 10px;border-radius:12px;font-weight:bold;">🔵 Aberta</span>
+                {% endif %}
+            </td>
             <td>{{ demanda['data_criacao'] }}</td>
+            <td>
+                {% if demanda['prazo'] %}
+                    {% set hoje = now_date %}
+                    <span style="font-weight:bold;color:{% if demanda['status'] in ('Aberta', None) and demanda['prazo'] < hoje %}#dc2626{% else %}#374151{% endif %};">
+                        {{ demanda['prazo'] }}
+                    </span>
+                {% else %}
+                    <span style="color:#9ca3af;font-size:12px;">— padrão 7d</span>
+                {% endif %}
+            </td>
             <td>
                 <a href="/detalhes/{{ demanda['id'] }}">Ver</a>
                 |
                 <a href="/editar/{{ demanda['id'] }}">Editar</a>
+                {% if status not in ('Concluida', 'Cancelada') %}
+                |
+                <a href="/concluir/{{ demanda['id'] }}" style="color:#16a34a;" onclick="return confirm('Marcar como concluída?')">✔ Concluir</a>
+                {% endif %}
                 {% if session.usuario_cargo == 'admin' or demanda['criado_por'] == session.usuario_id %}
                 |
-                <a href="/deletar/{{ demanda['id'] }}" style="color:red;">Deletar</a>
+                <a >Deletar</a>
                 {% endif %}
             </td>
         </tr>
         {% endfor %}
         {% if demandas | length == 0 %}
         <tr>
-            <td colspan="7" style="text-align:center; color:#6b7280; padding: 24px;">
+            <td colspan="9" style="text-align:center; color:#6b7280; padding: 24px;">
                 Nenhuma demanda encontrada para os filtros aplicados.
             </td>
         </tr>
