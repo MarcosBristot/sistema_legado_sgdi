@@ -9,6 +9,11 @@ import sqlite3
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 
 app = Flask(__name__)
 app.secret_key = 'sgdi_sprint3_secret_2026'
@@ -644,12 +649,6 @@ def exportar_criticas_pdf():
         ORDER BY d.data_criacao ASC
     """, (hoje, sete_dias_atras)).fetchall()
     conn.close()
-
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.units import cm
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
