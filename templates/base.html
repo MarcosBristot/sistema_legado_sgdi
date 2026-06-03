@@ -1,13 +1,142 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
+    <meta charset="UTF-8">
     <title>SGDI - Sistema de Gestão de Demandas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body { margin: 0; }
-        .user-info { font-size: 13px; color: #cce; }
-        .user-info a { color: #ffdd88; text-decoration: none; margin-left: 10px; }
-        .user-info a:hover { text-decoration: underline; }
+        /* --- VARIÁVEIS GLOBAIS (MODO CLARO EXCLUSIVO) --- */
+        :root {
+            /* Cores de Fundo e Texto */
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            
+            /* Cabeçalho */
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --header-border: #e2e8f0;
+            
+            /* Identidade Visual - Verde Corporativo */
+            --primary: #047857;       /* Verde Escuro */
+            --primary-accent: #10b981; /* Verde Esmeralda (Destaques) */
+            --primary-hover: #065f46;
+            
+            /* Sombras e Efeitos */
+            --shadow-card: 0 4px 6px -1px rgba(0,0,0,0.06);
+            --shadow-hover: 0 10px 15px -3px rgba(0,0,0,0.1);
+            
+            /* Cores dos Gráficos (Dashboard) */
+            --chart-aberta: #3b82f6;
+            --chart-concluida: #10b981;
+            --chart-atrasada: #ef4444;
+            --chart-cancelada: #94a3b8;
+
+            /* Badges de Status/Prioridade (Fundo, Texto, Borda) */
+            --badge-alta-bg: #fee2e2;    --badge-alta-text: #b91c1c;    --badge-alta-border: #fca5a5;
+            --badge-media-bg: #fef3c7;   --badge-media-text: #b45309;   --badge-media-border: #fcd34d;
+            --badge-baixa-bg: #d1fae5;   --badge-baixa-text: #047857;   --badge-baixa-border: #6ee7b7;
+            
+            --badge-aberta-bg: #dbeafe;  --badge-aberta-text: #1d4ed8;  --badge-aberta-border: #93c5fd;
+            --badge-concluida-bg: #dcfce7; --badge-concluida-text: #15803d; --badge-concluida-border: #86efac;
+            --badge-atrasada-bg: #fef2f2;  --badge-atrasada-text: #dc2626;  --badge-atrasada-border: #f87171;
+            --badge-cancelada-bg: #f1f5f9; --badge-cancelada-text: #475569; --badge-cancelada-border: #cbd5e1;
+        }
+
+        /* --- ESTILOS BASE E TRANSIÇÕES --- */
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- HEADER GLASSMORPHISM --- */
+        .header {
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--header-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .menu { display: flex; align-items: center; gap: 24px; }
+        .menu a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        .menu a:hover { color: var(--primary-accent); }
+        .menu .logout-btn { color: #ef4444; }
+        .menu .logout-btn:hover { color: #b91c1c; }
+
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 24px; animation: slideUp 0.6s ease-out forwards; }
+
+        /* --- COMPONENTES GLOBAIS --- */
+        button {
+            background-color: var(--primary); color: #ffffff; border: none;
+            padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 700;
+            font-size: 13px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(4, 120, 87, 0.2);
+        }
+        button:hover { background-color: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(4, 120, 87, 0.3); }
+
+        input, select, textarea {
+            background-color: var(--bg-surface); color: var(--text-main);
+            border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px 14px; font-size: 14px; width: 100%; max-width: 400px; box-sizing: border-box; transition: 0.2s; outline: none;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary-accent); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
+
+        /* Tabelas */
+        table { width: 100%; border-collapse: collapse; background: var(--bg-surface); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-card); border: 1px solid var(--border); }
+        th { background-color: #f1f5f9; color: var(--text-muted); text-align: left; padding: 16px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid var(--border); }
+        td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-main); transition: background-color 0.2s;}
+        tr:hover td { background-color: #f8fafc; }
+
+        /* --- SISTEMA DE BADGES (ETIQUETAS) --- */
+        .badge {
+            padding: 4px 10px; border-radius: 4px; font-weight: 800; font-size: 11px;
+            text-transform: uppercase; border: 1px solid; display: inline-block; letter-spacing: 0.5px;
+        }
+        .badge-alta { background: var(--badge-alta-bg); color: var(--badge-alta-text); border-color: var(--badge-alta-border); }
+        .badge-media { background: var(--badge-media-bg); color: var(--badge-media-text); border-color: var(--badge-media-border); }
+        .badge-baixa { background: var(--badge-baixa-bg); color: var(--badge-baixa-text); border-color: var(--badge-baixa-border); }
+        
+        .badge-aberta { background: var(--badge-aberta-bg); color: var(--badge-aberta-text); border-color: var(--badge-aberta-border); }
+        .badge-concluida { background: var(--badge-concluida-bg); color: var(--badge-concluida-text); border-color: var(--badge-concluida-border); }
+        .badge-atrasada { background: var(--badge-atrasada-bg); color: var(--badge-atrasada-text); border-color: var(--badge-atrasada-border); }
+        .badge-cancelada { background: var(--badge-cancelada-bg); color: var(--badge-cancelada-text); border-color: var(--badge-cancelada-border); }
+
+        h2 { color: var(--text-main); font-weight: 900; letter-spacing: -0.5px; margin-bottom: 24px;}
+        
+        /* Links de Ação na Tabela */
+        .action-link { color: var(--text-muted); font-weight: 700; text-decoration: none; margin-right: 12px; text-transform: uppercase; font-size: 12px; transition: 0.2s;}
+        .action-link:hover { color: var(--primary-accent); }
+        .action-link-primary { color: var(--primary); }
     </style>
 </head>
 <body>
@@ -17,32 +146,16 @@
             {% if session.usuario_id %}
                 <a href="/">Início</a>
                 <a href="/nova_demanda">Nova Demanda</a>
-                <a href="/dashboard" style="color:#ffd700;font-weight:bold;">📊 Dashboard</a>
+                <a href="/dashboard">Dashboard</a>
                 {% if session.usuario_cargo == 'admin' %}
-                <a href="/auditoria" style="color:#86efac;font-weight:bold;">🔍 Auditoria</a>
+                <a href="/auditoria">Auditoria</a>
                 {% endif %}
-                <form action="/buscar" method="GET" style="display:inline;">
-                    <input type="text" name="q" placeholder="Buscar">
-                    <button type="submit">Buscar</button>
-                </form>
-                <span class="user-info">
-                    👤 {{ session.usuario_nome }}
-                    <a href="/logout">Sair</a>
-                </span>
+                <a href="/logout" class="logout-btn">Sair</a>
             {% else %}
                 <a href="/login">Login</a>
-                <a href="/novo_usuario">Cadastrar</a>
             {% endif %}
         </div>
     </div>
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
 
     <div class="container">
         {% block content %}{% endblock %}
