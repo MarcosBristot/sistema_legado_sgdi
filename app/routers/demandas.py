@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from core.Database import get_db
-from models import DemandaModel
-from schemas.demandas import DemandaCreate, DemandaResponse
-from routers.auth import verificar_token
+from app.core.Database import get_db
+from app.models import DemandaModel
+from app.schemas.demandas import DemandaCreate, DemandaResponse
+from app.routers.auth import verificar_token
 
 router = APIRouter(prefix="/demandas", tags=["Gestão de Demandas"])
 

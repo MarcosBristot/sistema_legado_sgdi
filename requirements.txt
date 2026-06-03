@@ -1,9 +1,114 @@
-Flask==2.3.0
-Werkzeug==2.3.0
-fastapi==0.109.2
-uvicorn==0.27.1
-pydantic==2.6.1
-sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
-python-dotenv==1.0.1
-PyJWT==2.8.0
+Aqui está um guia completo, passo a passo, escrito de forma clara para que qualquer pessoa do seu time (ou um novo desenvolvedor) consiga clonar, configurar o banco do zero e testar a API.
+
+Você pode copiar este texto e colocar no README.md do repositório ou mandar na wiki de vocês (Notion/Confluence).
+
+📖 Manual de Setup e Testes - API SGDI (FastAPI + PostgreSQL)
+Este guia cobre desde a criação do banco de dados local até o teste de ponta a ponta na interface do Swagger.
+
+⚠️ Pré-requisitos
+Antes de começar, certifique-se de ter instalado na sua máquina:
+
+Python 3.10+
+
+PostgreSQL (Rodando localmente)
+
+O arquivo demandas.db (banco SQLite legado) colado na raiz do projeto.
+
+Passo 1: Criando o banco de dados no PostgreSQL
+A nossa API não cria o banco de dados (o contêiner "pai"), ela apenas cria as tabelas dentro dele. Portanto, você precisa criar o banco vazio primeiro.
+
+Opção A: Usando o pgAdmin (Interface Gráfica)
+
+Abra o pgAdmin e conecte-se ao seu servidor local.
+
+Clique com o botão direito em Databases > Create > Database...
+
+No campo "Database", digite sgdi.
+
+Clique em Save.
+
+Opção B: Usando o Terminal (psql)
+
+Abra o seu terminal e digite: psql -U postgres (digite sua senha quando pedir).
+
+Rode o comando de criação: CREATE DATABASE sgdi;
+
+Digite \q para sair.
+
+Passo 2: Configurando o Ambiente (.env)
+Na raiz do projeto (mesmo local do arquivo main.py), crie um arquivo chamado exatamente .env e cole as configurações abaixo.
+
+Atenção: Substitua sua_senha_aqui pela senha do seu usuário do PostgreSQL.
+
+Snippet de código
+API_ENV=development
+SECRET_KEY=sgdi_secret_jwt_2026_dev
+
+# String de conexão do banco
+# Formato: postgresql://usuario:senha@host:porta/nome_do_banco
+SQLALCHEMY_DATABASE_URL=postgresql://postgres:sua_senha_aqui@localhost:5432/sgdi
+Passo 3: Instalando as Dependências
+Abra o terminal na pasta do projeto e crie o ambiente virtual para isolar as bibliotecas:
+
+Bash
+# 1. Cria o ambiente virtual
+python -m venv venv
+
+# 2. Ativa o ambiente
+# No Windows:
+venv\Scripts\activate
+# No Linux/Mac:
+source venv/bin/activate
+
+# 3. Instala as bibliotecas necessárias
+pip install -r requirements.txt
+Passo 4: Migração de Dados (ETL)
+Agora vamos criar as tabelas no PostgreSQL e puxar os dados do sistema legado para a nossa nova base.
+
+Garanta que o arquivo demandas.db (do sistema antigo) está na raiz do projeto.
+
+Rode o script de migração:
+
+Bash
+python scripts/migrar_dados.py
+Se aparecer a mensagem "✅ Migração concluída com sucesso!", seu banco Postgres já está populado com os usuários e demandas antigas!
+
+Passo 5: Rodando a API
+Com o banco pronto, suba o servidor local da API:
+
+Bash
+uvicorn app.main:app --reload
+Se tudo estiver correto, o terminal mostrará: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit).
+
+Passo 6: Testando na Prática (Swagger)
+A melhor parte do FastAPI é que não precisamos do Postman para testar.
+
+Abra o navegador e acesse: http://127.0.0.1:8000/swagger
+
+Gerando o Token (Login):
+
+Clique no botão verde "Authorize" (canto superior direito).
+
+No campo username, digite o e-mail de um usuário que já existia no sistema antigo.
+
+No campo password, digite a senha.
+
+Clique em "Authorize" e depois em "Close". O cadeado das rotas agora deve aparecer fechado.
+
+Testando a Leitura (GET):
+
+Clique na rota GET /demandas/.
+
+Clique em "Try it out" e depois em "Execute".
+
+Role para baixo. Você deve ver o Status 200 e um JSON contendo as demandas que vieram do SQLite!
+
+Testando a Escrita (POST):
+
+Clique na rota POST /demandas/.
+
+Clique em "Try it out".
+
+O Swagger te dará um modelo de JSON. Preencha com dados de teste e clique em "Execute".
+
+Você deve receber um Status 201, indicando que a demanda foi salva no PostgreSQL com sucesso.

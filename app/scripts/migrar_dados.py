@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
 import sqlite3
 from sqlalchemy.orm import Session
 from core.Database import SessionLocal, engine
@@ -10,7 +15,8 @@ def migrar():
     Base.metadata.create_all(bind=engine)
     
     # Conecta no SQLite legado
-    conn_sqlite = sqlite3.connect('demandas.db')
+    DB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'demandas.db')
+    conn_sqlite = sqlite3.connect(DB_PATH)
     conn_sqlite.row_factory = sqlite3.Row
     cursor = conn_sqlite.cursor()
 

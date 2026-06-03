@@ -6,8 +6,8 @@ import jwt
 import os
 from werkzeug.security import check_password_hash
 
-from core.Database import get_db
-from models import UsuarioModel
+from app.core.Database import get_db
+from app.models import UsuarioModel
 
 router = APIRouter(prefix="/auth", tags=["Segurança"])
 

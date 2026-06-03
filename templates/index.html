@@ -139,11 +139,10 @@
                 {% endif %}
             </td>
             <td>{{ demanda['data_criacao'] }}</td>
-            <td>
+           <td>
                 {% if demanda['prazo'] %}
-                    {% set hoje = now_date %}
-                    <span style="font-weight:bold;color:{% if demanda['status'] in ('Aberta', None) and demanda['prazo'] < hoje %}#dc2626{% else %}#374151{% endif %};">
-                        {{ demanda['prazo'] }}
+                    <span style="font-weight:bold;color:{% if demanda['status'] in ('Aberta', None) and demanda['prazo'].strftime('%Y-%m-%d') < now_date.strftime('%Y-%m-%d') %}#dc2626{% else %}#374151{% endif %};">
+                        {{ demanda['prazo'].strftime('%d/%m/%Y') }}
                     </span>
                 {% else %}
                     <span style="color:#9ca3af;font-size:12px;">— padrão 7d</span>
