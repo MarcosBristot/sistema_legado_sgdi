@@ -18,6 +18,9 @@
                 <a href="/">Início</a>
                 <a href="/nova_demanda">Nova Demanda</a>
                 <a href="/dashboard" style="color:#ffd700;font-weight:bold;">📊 Dashboard</a>
+                {% if session.usuario_cargo == 'admin' %}
+                <a href="/auditoria" style="color:#86efac;font-weight:bold;">🔍 Auditoria</a>
+                {% endif %}
                 <form action="/buscar" method="GET" style="display:inline;">
                     <input type="text" name="q" placeholder="Buscar">
                     <button type="submit">Buscar</button>

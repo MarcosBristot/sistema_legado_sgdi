@@ -64,3 +64,20 @@ class HistoricoEdicoesModel(Base):
     # Relacionamentos
     demanda = relationship("DemandaModel", back_populates="historico")
     usuario = relationship("UsuarioModel", back_populates="historico_alteracoes")
+
+
+class LogAuditoriaModel(Base):
+    __tablename__ = "logs_auditoria"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    usuario_id  = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    email       = Column(String, nullable=True)
+    acao        = Column(String, nullable=False)
+    entidade    = Column(String, nullable=True)
+    entidade_id = Column(Integer, nullable=True)
+    detalhes    = Column(Text, nullable=True)
+    ip          = Column(String, nullable=True)
+    status      = Column(String, default='sucesso')
+    data        = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    usuario = relationship("UsuarioModel", backref="logs")

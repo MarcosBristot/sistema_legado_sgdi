@@ -11,6 +11,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
+from app.services.logger import registrar_log
 
 load_dotenv()
 
@@ -118,14 +119,33 @@ def login():
             session['usuario_id']    = usuario['id']
             session['usuario_nome']  = usuario['nome']
             session['usuario_cargo'] = usuario['cargo']
+            registrar_log(
+                acao="LOGIN",
+                email=email,
+                usuario_id=usuario['id'],
+                ip=request.remote_addr,
+                status="sucesso"
+            )
             flash(f'Bem-vindo, {usuario["nome"]}!')
             return redirect(url_for('index'))
+        registrar_log(
+            acao="LOGIN",
+            email=email,
+            ip=request.remote_addr,
+            status="falha"
+        )
         flash('E-mail ou senha inválidos.')
     return render_template('login.html')
 
 
 @app.route('/logout')
 def logout():
+    registrar_log(
+        acao="LOGOUT",
+        email=session.get('usuario_nome'),
+        usuario_id=session.get('usuario_id'),
+        ip=request.remote_addr,
+    )
     session.clear()
     flash('Você saiu do sistema.')
     return redirect(url_for('login'))
@@ -203,6 +223,14 @@ def nova_demanda():
             'criado_por': session['usuario_id']})
         conn.commit()
         conn.close()
+        registrar_log(
+            acao="CRIAR_DEMANDA",
+            usuario_id=session['usuario_id'],
+            email=session.get('usuario_nome'),
+            entidade="demanda",
+            detalhes=f"Título: {titulo} | Prioridade: {prioridade}",
+            ip=request.remote_addr,
+        )
         flash('Demanda salva com sucesso!')
         return redirect('/')
     return render_template('nova_demanda.html')
@@ -259,6 +287,15 @@ def editar(id):
             'prazo': prazo or None, 'id': id})
         conn.commit()
         conn.close()
+        registrar_log(
+            acao="EDITAR_DEMANDA",
+            usuario_id=session['usuario_id'],
+            email=session.get('usuario_nome'),
+            entidade="demanda",
+            entidade_id=id,
+            detalhes=f"Status: {status} | Prioridade: {prioridade}",
+            ip=request.remote_addr,
+        )
         flash('Demanda atualizada!')
         return redirect('/')
 
@@ -285,6 +322,14 @@ def cancelar(id):
         "VALUES (:did, :uid, :data, 'status', :ant, 'Cancelada')"
     ), {'did': id, 'uid': session['usuario_id'], 'data': agora, 'ant': demanda['status'] or 'Aberta'})
     conn.commit(); conn.close()
+    registrar_log(
+        acao="CANCELAR_DEMANDA",
+        usuario_id=session['usuario_id'],
+        email=session.get('usuario_nome'),
+        entidade="demanda",
+        entidade_id=id,
+        ip=request.remote_addr,
+    )
     flash('Demanda cancelada.')
     return redirect(request.referrer or '/')
 
@@ -305,6 +350,14 @@ def concluir(id):
         "VALUES (:did, :uid, :data, 'status', :ant, 'Concluida')"
     ), {'did': id, 'uid': session['usuario_id'], 'data': agora, 'ant': demanda['status'] or 'Aberta'})
     conn.commit(); conn.close()
+    registrar_log(
+        acao="CONCLUIR_DEMANDA",
+        usuario_id=session['usuario_id'],
+        email=session.get('usuario_nome'),
+        entidade="demanda",
+        entidade_id=id,
+        ip=request.remote_addr,
+    )
     flash('Demanda concluída!')
     return redirect(request.referrer or '/')
 
@@ -576,6 +629,96 @@ def exportar_criticas_pdf():
     return Response(buffer.getvalue(), mimetype='application/pdf',
                     headers={'Content-Disposition': f'attachment; filename={nome}'})
 
+# ── Auditoria (somente admin) ──────────────────────────────────────────────────
+@app.route('/auditoria')
+@login_required
+def auditoria():
+    if session.get('usuario_cargo') != 'admin':
+        flash('Acesso restrito a administradores.')
+        return redirect('/')
+ 
+    # Filtros
+    filtro_email  = request.args.get('email', '').strip()
+    filtro_acao   = request.args.get('acao', '').strip()
+    filtro_status = request.args.get('status', '').strip()
+    filtro_inicio = request.args.get('data_inicio', '').strip()
+    filtro_fim    = request.args.get('data_fim', '').strip()
+    pagina        = int(request.args.get('pagina', 1))
+    por_pagina    = 50
+ 
+    # Monta query_params sem 'pagina' para usar na paginação
+    from urllib.parse import urlencode
+    qp = {k: v for k, v in request.args.items() if k != 'pagina'}
+    query_params = urlencode(qp)
+ 
+    conn = get_db()
+ 
+    # Query principal com filtros
+    where, params = [], {}
+    if filtro_email:
+        where.append("email ILIKE :email")
+        params['email'] = f'%{filtro_email}%'
+    if filtro_acao:
+        where.append("acao = :acao")
+        params['acao'] = filtro_acao
+    if filtro_status:
+        where.append("status = :status")
+        params['status'] = filtro_status
+    if filtro_inicio:
+        where.append("data >= :inicio")
+        params['inicio'] = filtro_inicio
+    if filtro_fim:
+        where.append("data <= :fim")
+        params['fim'] = filtro_fim + ' 23:59:59'
+ 
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+ 
+    total = fetchone(conn,
+        f"SELECT COUNT(*) as c FROM logs_auditoria {where_sql}", params)['c']
+ 
+    offset = (pagina - 1) * por_pagina
+    params_pag = {**params, 'limit': por_pagina, 'offset': offset}
+    logs = fetchall(conn,
+        f"SELECT * FROM logs_auditoria {where_sql} ORDER BY data DESC LIMIT :limit OFFSET :offset",
+        params_pag)
+ 
+    # Resumo cards
+    hoje = datetime.now().strftime('%Y-%m-%d')
+    total_falhas   = fetchone(conn, "SELECT COUNT(*) as c FROM logs_auditoria WHERE status='falha'")['c']
+    total_usuarios = fetchone(conn, "SELECT COUNT(DISTINCT email) as c FROM logs_auditoria WHERE email IS NOT NULL")['c']
+    logins_hoje    = fetchone(conn,
+        "SELECT COUNT(*) as c FROM logs_auditoria WHERE acao='LOGIN' AND status='sucesso' AND data >= :hoje",
+        {'hoje': hoje})['c']
+    demandas_criadas = fetchone(conn,
+        "SELECT COUNT(*) as c FROM logs_auditoria WHERE acao='CRIAR_DEMANDA'")['c']
+ 
+    # Lista de ações distintas para o select
+    acoes = [r['acao'] for r in fetchall(conn,
+        "SELECT DISTINCT acao FROM logs_auditoria ORDER BY acao")]
+ 
+    conn.close()
+ 
+    import math
+    total_paginas = math.ceil(total / por_pagina) if total else 1
+ 
+    # Converter data string para objeto datetime nos logs para o template
+    from datetime import datetime as dt
+    for log in logs:
+        if isinstance(log.get('data'), str):
+            try:
+                log['data'] = dt.strptime(log['data'], '%Y-%m-%d %H:%M:%S')
+            except:
+                pass
+ 
+    return render_template('auditoria.html',
+        logs=logs, total=total, pagina=pagina,
+        total_paginas=total_paginas, query_params=query_params,
+        total_falhas=total_falhas, total_usuarios=total_usuarios,
+        logins_hoje=logins_hoje, demandas_criadas=demandas_criadas,
+        acoes=acoes,
+        filtro_email=filtro_email, filtro_acao=filtro_acao,
+        filtro_status=filtro_status, filtro_inicio=filtro_inicio,
+        filtro_fim=filtro_fim)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

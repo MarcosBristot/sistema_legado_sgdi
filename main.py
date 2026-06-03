@@ -3,7 +3,8 @@ import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, demandas
+from fastapi.middleware.cors import CORSMiddleware
+from app.routers import auth, demandas, auditoria
 
 # Inicialização do FastAPI com documentação Swagger customizada
 app = FastAPI(
@@ -28,6 +29,7 @@ app.add_middleware(
 # ==========================================
 app.include_router(auth.router)
 app.include_router(demandas.router)
+app.include_router(auditoria.router)     
 
 @app.get("/", tags=["Health Check"])
 async def health_check():

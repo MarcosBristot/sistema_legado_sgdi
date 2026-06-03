@@ -7,6 +7,7 @@ from app.core.Database import get_db
 from app.models import DemandaModel, HistoricoEdicoesModel
 from app.schemas.demandas import DemandaCreate, DemandaUpdate, DemandaResponse
 from app.routers.auth import verificar_token, verificar_admin
+from app.services.logger import registrar_log
 
 router = APIRouter(prefix="/demandas", tags=["Gestão de Demandas"])
 
@@ -52,6 +53,15 @@ def criar_demanda(
     db.add(nova)
     db.commit()
     db.refresh(nova)
+    registrar_log(
+        acao="CRIAR_DEMANDA",
+        usuario_id=usuario_atual["id"],
+        email=usuario_atual["email"],
+        entidade="demanda",
+        entidade_id=nova.id,
+        detalhes=f"Via API | Prioridade: {nova.prioridade}",
+        ip="api"
+    )
     return nova
 
 
@@ -103,6 +113,15 @@ def editar_demanda(
 
     db.commit()
     db.refresh(demanda)
+    registrar_log(
+        acao="EDITAR_DEMANDA",
+        usuario_id=usuario_atual["id"],
+        email=usuario_atual["email"],
+        entidade="demanda",
+        entidade_id=id,
+        detalhes=f"Via API | Status: {demanda_in.status} | Prioridade: {demanda_in.prioridade}",
+        ip="api"
+    )
     return demanda
 
 
@@ -129,6 +148,14 @@ def concluir_demanda(
     demanda.data_conclusao = agora
     db.commit()
     db.refresh(demanda)
+    registrar_log(
+        acao="CONCLUIR_DEMANDA",
+        usuario_id=usuario_atual["id"],
+        email=usuario_atual["email"],
+        entidade="demanda",
+        entidade_id=id,
+        ip="api"
+    )
     return demanda
 
 
@@ -160,6 +187,14 @@ def cancelar_demanda(
     demanda.data_conclusao = agora
     db.commit()
     db.refresh(demanda)
+    registrar_log(
+        acao="CANCELAR_DEMANDA",
+        usuario_id=usuario_atual["id"],
+        email=usuario_atual["email"],
+        entidade="demanda",
+        entidade_id=id,
+        ip="api"
+    )
     return demanda
 
 
@@ -168,7 +203,7 @@ def cancelar_demanda(
 def deletar_demanda(
     id: int,
     db: Session = Depends(get_db),
-    usuario_atual: dict = Depends(verificar_admin)   # ← só admin chega aqui
+    usuario_atual: dict = Depends(verificar_admin)
 ):
     demanda = db.query(DemandaModel).filter(DemandaModel.id == id).first()
     if not demanda:
@@ -176,6 +211,15 @@ def deletar_demanda(
 
     db.delete(demanda)
     db.commit()
+    registrar_log(
+        acao="DELETAR_DEMANDA",
+        usuario_id=usuario_atual["id"],
+        email=usuario_atual["email"],
+        entidade="demanda",
+        entidade_id=id,
+        detalhes="Deleção via API por admin",
+        ip="api"
+    )
     return
 
 
@@ -201,4 +245,13 @@ def alterar_cargo(
 
     usuario.cargo = cargo
     db.commit()
+    registrar_log(
+        acao="ALTERAR_CARGO",
+        usuario_id=usuario_atual["id"],
+        email=usuario_atual["email"],
+        entidade="usuario",
+        entidade_id=id,
+        detalhes=f"Novo cargo: {cargo}",
+        ip="api"
+    )
     return {"id": id, "nome": usuario.nome, "cargo": usuario.cargo}
